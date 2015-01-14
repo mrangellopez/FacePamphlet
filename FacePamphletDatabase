@@ -1,0 +1,152 @@
+import java.util.*;
+import java.io.*;
+ 
+import acm.graphics.GImage;
+import acm.util.ErrorException;
+ 
+import acm.util.ErrorException;
+ 
+public class FacePamphletDatabase implements FacePamphletConstants {
+ 
+    /**
+     * Constructor This method takes care of any initialization needed for the
+     * database.
+     */
+    public FacePamphletDatabase() {
+        database = new HashMap<String, FacePamphletProfile>();
+        names = new ArrayList<String>();
+    }
+ 
+    /**
+     * This method adds the given profile to the database. If the name
+     * associated with the profile is the same as an existing name in the
+     * database, the existing profile is replaced by the new profile passed in.
+     */
+    public void addProfile(FacePamphletProfile profile) {
+        String name = profile.getName();
+        database.put(name, profile);
+        names.add(name);
+         
+    }
+ 
+    /**
+     * This method returns the profile associated with the given name in the
+     * database. If there is no profile in the database with the given name, the
+     * method returns null.
+     */
+    public FacePamphletProfile getProfile(String name) {
+        FacePamphletProfile profile = database.get(name);
+        return profile;
+    }
+ 
+    /**
+     * This method removes the profile associated with the given name from the
+     * database. It also updates the list of friends of all other profiles in
+     * the database to make sure that this name is removed from the list of
+     * friends of any other profile.
+     *
+     * If there is no profile in the database with the given name, then the
+     * database is unchanged after calling this method.
+     */
+    public void deleteProfile(String name) {
+        database.remove(name);
+    }
+ 
+    /**
+     * This method returns true if there is a profile in the database that has
+     * the given name. It returns false otherwise.
+     */
+    public boolean containsProfile(String name) {
+        if (database.containsKey(name))
+            return true;
+        return false;
+    }
+ 
+    /**
+     * Reads a file and imports info about social networks into program. Returns
+     * true if the file successfully loads a social network.
+     */
+    public void loadFile(String file) {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+            String profileNumberString = reader.readLine();
+            int profileNumber = Integer.parseInt(profileNumberString);
+            while (true) {
+                String name = reader.readLine();
+                if (name == null)
+                    break;
+                FacePamphletProfile profile = new FacePamphletProfile(name);
+                String imageName = reader.readLine();
+                if (!imageName.isEmpty()) {
+                    GImage image = new GImage(imageName);
+                    profile.setImage(image);
+                }
+                String status = reader.readLine();
+                if (status != null) {
+                    profile.setStatus(status);
+                }
+                    String friend = reader.readLine();
+                    while(!friend.isEmpty() ) {
+                        profile.addFriend(friend);
+                        friend = reader.readLine();
+                }
+                database.put(name, profile);
+            }
+            reader.close();
+ 
+        } catch (IOException ex) {
+            throw new ErrorException(ex);
+        }
+    }
+ 
+    /**
+     * Saves an established social network onto a file. Returns true if
+     * successfully saved.
+     */
+    public void saveFile() {
+        try {
+            File newFile = new File("/users/Angel/Documents/workspace/Assignment7/network-file.txt");
+            if(newFile.exists()) {
+            	newFile.delete();	
+            }
+            newFile.createNewFile();
+            FileWriter fileWriter = new FileWriter(newFile.getAbsoluteFile());
+            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+            String info = getInfo();
+            bufferedWriter.write(info);
+            bufferedWriter.close();
+  
+        } catch (IOException ex) {
+            throw new ErrorException(ex);
+        }
+    }
+     
+    private String getInfo() {
+        String info = new String();
+        info += database.size();
+        info += "\n";
+        for (int i = 0; i < database.size(); i++) {
+            String key = names.get(i);
+            FacePamphletProfile profile = database.get(key);
+            String name = profile.getName();
+            String imageName = profile.getImageName();
+            String status = profile.getStatus();
+            info += name + "\n" + imageName + "\n" + status + "\n";
+            Iterator iterator = profile.getFriends();
+            while(iterator.hasNext()) {
+                info += iterator.next() + "\n";
+            }
+            if (i < database.size()) info += "\n";
+        }
+        return info;
+    }
+ 
+    public int getSize() {
+        if (database.size() > 0)
+            return database.size();
+        return 0;
+    }
+ 
+    private Map<String, FacePamphletProfile> database;
+    private ArrayList<String> names;
+}
