@@ -1,0 +1,258 @@
+import acm.program.*;
+import acm.graphics.*;
+import acm.gui.TableLayout;
+import acm.util.*;
+ 
+import java.awt.BorderLayout;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+ 
+import javax.swing.*;
+ 
+public class FacePamphlet extends Program implements FacePamphletConstants {
+ 
+    public static void main(String[] args) {
+        new FacePamphlet().start(args);
+    }
+ 
+    /**
+     * This method has the responsibility for initializing the interactors in
+     * the application, and taking care of any other initialization that needs
+     * to be performed.
+     */
+    public void init() {
+        statusField = new JTextField("");
+        changeStatusButton = new JButton("Change Status");
+        pictureField = new JTextField(TEXT_FIELD_SIZE);
+        changePictureButton = new JButton("Change Picture");
+        friendField = new JTextField(TEXT_FIELD_SIZE);
+        addFriendButton = new JButton("Add Friend");
+        JLabel nameLabel = new JLabel("Name");
+        nameField = new JTextField(TEXT_FIELD_SIZE);
+        addButton = new JButton("Add");
+        deleteButton = new JButton("Delete");
+        lookupButton = new JButton("Lookup");
+        canvas = new FacePamphletCanvas();
+        message = "";
+ 
+        fileField = new JTextField(TEXT_FIELD_SIZE);
+        JLabel fileLabel = new JLabel("File");
+        loadButton = new JButton("Load");
+        saveButton = new JButton("Save");
+ 
+        add(statusField, WEST);
+        add(changeStatusButton, WEST);
+        add(new JLabel(EMPTY_LABEL_TEXT), WEST);
+        add(pictureField, WEST);
+        add(changePictureButton, WEST);
+        add(new JLabel(EMPTY_LABEL_TEXT), WEST);
+        add(friendField, WEST);
+        add(addFriendButton, WEST);
+        add(nameLabel, NORTH);
+        add(nameField, NORTH);
+        add(addButton, NORTH);
+        add(deleteButton, NORTH);
+        add(lookupButton, NORTH);
+        add(canvas, CENTER);
+        add(fileLabel, NORTH);
+        add(fileField, NORTH);
+        add(loadButton, NORTH);
+        add(saveButton, NORTH);
+ 
+        statusField.addActionListener(this);
+        pictureField.addActionListener(this);
+        fileField.addActionListener(this);
+        friendField.addActionListener(this);
+        nameField.addActionListener(this);
+        addActionListeners();
+        database = new FacePamphletDatabase();
+    }
+ 
+    /**
+     * This class is responsible for detecting when the buttons are clicked or
+     * interactors are used, so you will have to add code to respond to these
+     * actions.
+     */
+    public void actionPerformed(ActionEvent e) {
+        String name = nameField.getText();
+        String file = fileField.getText();
+        Object source = e.getSource();
+        if (source.equals(changeStatusButton) || source.equals(statusField)) {
+            changeStatus();
+        } else if (source.equals(changePictureButton)
+                || source.equals(pictureField)) {
+            changePhoto();
+        } else if (source.equals(addFriendButton) || source.equals(friendField)) {
+            addFriend();
+        } else if (source.equals(loadButton)) {
+            if (!file.isEmpty()) {
+                loadFile(file);
+                fileField.setText("");
+                 
+            }
+        }else if (source.equals(saveButton)) {
+                saveFile();
+                fileField.setText("");
+        } else {
+            profile = null;
+            if (!name.isEmpty()) {
+                if (source.equals(addButton)) {
+                    createProfile(name);
+                } else if (source.equals(deleteButton)) {
+                    deleteProfile(name);
+                } else if (source.equals(lookupButton) || source.equals(nameField)) {
+                    lookupProfile(name);
+                }
+                nameField.setText("");
+            }
+        }
+        if (profile != null)
+            canvas.displayProfile(profile);
+        canvas.showMessage(message);
+    }
+ 
+    private void changeStatus() {
+        String status = statusField.getText();
+        if (!status.isEmpty()) {
+            if (profile != null) {
+                profile.setStatus(status);
+                message = new String("Status updated to " + status);
+            } else {
+                message = new String(
+                        "Please select a profile to change status.");
+            }
+            statusField.setText("");
+        }
+    }
+ 
+    private void changePhoto() {
+        String pictureName = pictureField.getText();
+        if (!pictureName.isEmpty()) {
+            GImage profilePicture = null;
+            if (profile != null) {
+                try {
+                    profilePicture = new GImage(pictureName);
+                    if (profilePicture != null) {
+                        profile.setImage(profilePicture);
+                        profile.setImageName(pictureName);
+                    }
+                    message = new String("Picture updated");
+                } catch (ErrorException ex) {
+                    message = new String("Unable to open image file: "
+                            + pictureName);
+                }
+            } else {
+                message = new String(
+                        "Please select a profile to change picture.");
+            }
+            pictureField.setText("");
+        }
+    }
+ 
+    private void addFriend() {
+        String friend = friendField.getText();
+        if (!friend.isEmpty()) {
+            if (profile != null) {
+                if (database.containsProfile(friend)) {
+                    if (profile.addFriend(friend)) {
+                        returnFriendship(friend);
+                        message = new String(friend + " added as a friend");
+                    } else {
+                        message = new String(profile.getName()
+                                + " already has " + friend + " as a friend");
+                    }
+                } else {
+                    message = new String(friend + " does not exist.");
+                }
+            } else {
+                message = new String("Please select a profile to add a friend.");
+            }
+            friendField.setText("");
+        }
+    }
+ 
+    private void createProfile(String name) {
+        if (database.containsProfile(name)) {
+            profile = database.getProfile(name);
+            message = new String("A profile with the name " + name
+                    + " already exists");
+        } else {
+            profile = new FacePamphletProfile(name);
+            database.addProfile(profile);
+            message = new String("New profile created");
+        }
+    }
+ 
+    private void deleteProfile(String name) {
+    	if(!name.isEmpty()) {
+    		if (database.containsProfile(name)) {
+    			profile = database.getProfile(name);
+    			removeDeletedProfileFromAllFriendsLists(name);
+    			database.deleteProfile(name);
+    			canvas.removeAll();
+    			message = new String("Profile of " + name + " deleted.");
+    		} else {
+    			message = new String("A profile with the name " + name
+    					+ " does not exist.");
+    		}
+    	}
+    }
+ 
+    private void lookupProfile(String name) {
+        if (database.containsProfile(name)) {
+            profile = database.getProfile(name);
+            message = new String("Displaying " + name);
+        } else {
+            message = new String("A profile with the name " + name
+                    + " does not exist.");
+        }
+    }
+ 
+    private void removeDeletedProfileFromAllFriendsLists(
+            String deletedPersonName) {
+        Iterator<String> iterator = profile.getFriends();
+        while (iterator.hasNext()) {
+            profile = database.getProfile(iterator.next());
+            profile.removeFriend(deletedPersonName);
+        }
+        profile = null;
+    }
+ 
+    private void returnFriendship(String friend) {
+        FacePamphletProfile friendProfile = database.getProfile(friend);
+        friendProfile.addFriend(profile.getName());
+    }
+ 
+    private void loadFile(String fileName) {
+        database.loadFile(fileName);
+        if(database.getSize() > 0) {
+            message = "Loaded file " + fileName;
+        } else {
+            message = "The file " + fileName + " could not be loaded";
+        }
+    }
+ 
+    private void saveFile() {
+        database.saveFile();
+        message = "Saved file as 'network-file.txt'";
+    }
+ 
+    private FacePamphletDatabase database;
+    private FacePamphletProfile profile;
+    private FacePamphletCanvas canvas;
+    private JButton addButton;
+    private JButton addFriendButton;
+    private JButton changePictureButton;
+    private JButton changeStatusButton;
+    private JButton deleteButton;
+    private JButton lookupButton;
+    private JButton loadButton;
+    private JButton saveButton;
+    private JTextField fileField;
+    private JTextField friendField;
+    private JTextField nameField;
+    private JTextField pictureField;
+    private JTextField statusField;
+    private String message;
+}
